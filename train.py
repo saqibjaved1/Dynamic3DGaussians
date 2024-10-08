@@ -46,6 +46,7 @@ def initialize_params(seq, md):
         'seg_colors': np.stack((seg, np.zeros_like(seg), 1 - seg), -1),
         'unnorm_rotations': np.tile([1, 0, 0, 0], (seg.shape[0], 1)),
         'logit_opacities': np.zeros((seg.shape[0], 1)),
+        'mask': np.ones((seg.shape[0], 1)),
         'log_scales': np.tile(np.log(np.sqrt(mean3_sq_dist))[..., None], (1, 3)),
         'cam_m': np.zeros((max_cams, 3)),
         'cam_c': np.zeros((max_cams, 3)),
@@ -68,6 +69,7 @@ def initialize_optimizer(params, variables):
         'seg_colors': 0.0,
         'unnorm_rotations': 0.001,
         'logit_opacities': 0.05,
+        'mask': 0.01,
         'log_scales': 0.001,
         'cam_m': 1e-4,
         'cam_c': 1e-4,
@@ -91,6 +93,9 @@ def get_loss(params, curr_data, variables, is_initial_timestep):
     segrendervar['colors_precomp'] = params['seg_colors']
     seg, _, _, = Renderer(raster_settings=curr_data['cam'])(**segrendervar)
     losses['seg'] = 0.8 * l1_loss_v1(seg, curr_data['seg']) + 0.2 * (1.0 - calc_ssim(seg, curr_data['seg']))
+    
+
+    losses["mask"] = torch.mean((torch.sigmoid(params["mask"])))
 
     if not is_initial_timestep:
         is_fg = (params['seg_colors'][:, 0] > 0.5).detach()
@@ -120,7 +125,7 @@ def get_loss(params, curr_data, variables, is_initial_timestep):
         losses['soft_col_cons'] = l1_loss_v2(params['rgb_colors'], variables["prev_col"])
 
     loss_weights = {'im': 1.0, 'seg': 3.0, 'rigid': 4.0, 'rot': 4.0, 'iso': 2.0, 'floor': 2.0, 'bg': 20.0,
-                    'soft_col_cons': 0.01}
+                    'soft_col_cons': 0.01, 'mask': 0.0005}
     loss = sum([loss_weights[k] * v for k, v in losses.items()])
     seen = radius > 0
     variables['max_2D_radius'][seen] = torch.max(radius[seen], variables['max_2D_radius'][seen])
@@ -133,6 +138,7 @@ def initialize_per_timestep(params, variables, optimizer):
     rot = torch.nn.functional.normalize(params['unnorm_rotations'])
     new_pts = pts + (pts - variables["prev_pts"])
     new_rot = torch.nn.functional.normalize(rot + (rot - variables["prev_rot"]))
+    new_mask = torch.ones_like(params['mask'])
 
     is_fg = params['seg_colors'][:, 0] > 0.5
     prev_inv_rot_fg = rot[is_fg]
@@ -145,7 +151,7 @@ def initialize_per_timestep(params, variables, optimizer):
     variables["prev_pts"] = pts.detach()
     variables["prev_rot"] = rot.detach()
 
-    new_params = {'means3D': new_pts, 'unnorm_rotations': new_rot}
+    new_params = {'means3D': new_pts, 'unnorm_rotations': new_rot, 'mask': new_mask}
     params = update_params_and_optimizer(new_params, params, optimizer)
 
     return params, variables
@@ -188,7 +194,7 @@ def train(seq, exp):
     if os.path.exists(f"./output/{exp}/{seq}"):
         print(f"Experiment '{exp}' for sequence '{seq}' already exists. Exiting.")
         return
-    md = json.load(open(f"./data/{seq}/train_meta.json", 'r'))  # metadata
+    md = json.load(open(f"/scratch/cvlab/datasets/datasets_ahmad/panoptic/{seq}/train_meta.json", 'r'))  # metadata
     num_timesteps = len(md['fn'])
     params, variables = initialize_params(seq, md)
     optimizer = initialize_optimizer(params, variables)
@@ -219,7 +225,11 @@ def train(seq, exp):
 
 
 if __name__ == "__main__":
-    exp_name = "exp1"
-    for sequence in ["basketball", "boxes", "football", "juggle", "softball", "tennis"]:
+    exp_name = "baseline_mask"
+    # for sequence in ["basketball", "boxes", "football", "juggle", "softball", "tennis"]:
+    #     train(sequence, exp_name)
+    #     torch.cuda.empty_cache()
+
+    for sequence in ["basketball", "juggle", "tennis"]:
         train(sequence, exp_name)
         torch.cuda.empty_cache()

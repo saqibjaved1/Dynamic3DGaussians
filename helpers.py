@@ -32,12 +32,13 @@ def setup_camera(w, h, k, w2c, near=0.01, far=100):
 
 
 def params2rendervar(params):
+    mask = ((torch.sigmoid(params["mask"]) > 0.01).float()- torch.sigmoid(params["mask"])).detach() + torch.sigmoid(params["mask"])
     rendervar = {
         'means3D': params['means3D'],
         'colors_precomp': params['rgb_colors'],
         'rotations': torch.nn.functional.normalize(params['unnorm_rotations']),
-        'opacities': torch.sigmoid(params['logit_opacities']),
-        'scales': torch.exp(params['log_scales']),
+        'opacities': torch.sigmoid(params['logit_opacities']) * mask,
+        'scales': torch.exp(params['log_scales']) * mask,
         'means2D': torch.zeros_like(params['means3D'], requires_grad=True, device="cuda") + 0
     }
     return rendervar
@@ -87,7 +88,7 @@ def params2cpu(params, is_initial_timestep):
         res = {k: v.detach().cpu().contiguous().numpy() for k, v in params.items()}
     else:
         res = {k: v.detach().cpu().contiguous().numpy() for k, v in params.items() if
-               k in ['means3D', 'rgb_colors', 'unnorm_rotations']}
+               k in ['means3D', 'rgb_colors', 'unnorm_rotations', "mask"]}
     return res
 
 
