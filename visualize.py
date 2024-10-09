@@ -33,6 +33,7 @@ def_pix = torch.tensor(
     np.stack(np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5, 1), -1).reshape(-1, 3)).cuda().float()
 pix_ones = torch.ones(h * w, 1).cuda().float()
 
+o3d.visualization.webrtc_server.enable_webrtc()
 
 def init_camera(y_angle=0., center_dist=2.4, cam_height=1.3, f_ratio=0.82):
     ry = y_angle * np.pi / 180
@@ -50,12 +51,13 @@ def load_scene_data(seq, exp, seg_as_col=False):
     is_fg = params['seg_colors'][:, 0] > 0.5
     scene_data = []
     for t in range(len(params['means3D'])):
+        mask = ((torch.sigmoid(params["mask"][t]) > 0.01).float() - torch.sigmoid(params["mask"][t])).detach() + torch.sigmoid(params["mask"][t])
         rendervar = {
             'means3D': params['means3D'][t],
             'colors_precomp': params['rgb_colors'][t] if not seg_as_col else params['seg_colors'],
             'rotations': torch.nn.functional.normalize(params['unnorm_rotations'][t]),
-            'opacities': torch.sigmoid(params['logit_opacities']),
-            'scales': torch.exp(params['log_scales']),
+            'opacities': torch.sigmoid(params['logit_opacities']) * mask,
+            'scales': torch.exp(params['log_scales']) * mask,
             'means2D': torch.zeros_like(params['means3D'][0], device="cuda")
         }
         if REMOVE_BACKGROUND:
@@ -233,6 +235,6 @@ def visualize(seq, exp):
 
 
 if __name__ == "__main__":
-    exp_name = "pretrained"
-    for sequence in ["basketball", "boxes", "football", "juggle", "softball", "tennis"]:
+    exp_name = "baseline_mask"
+    for sequence in ["basketball", "juggle", "tennis"]:
         visualize(sequence, exp_name)
