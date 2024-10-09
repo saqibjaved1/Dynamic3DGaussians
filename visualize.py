@@ -33,7 +33,6 @@ def_pix = torch.tensor(
     np.stack(np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5, 1), -1).reshape(-1, 3)).cuda().float()
 pix_ones = torch.ones(h * w, 1).cuda().float()
 
-o3d.visualization.webrtc_server.enable_webrtc()
 
 def init_camera(y_angle=0., center_dist=2.4, cam_height=1.3, f_ratio=0.82):
     ry = y_angle * np.pi / 180
