@@ -2,3 +2,5 @@ __pycache__/
 .idea/
 data/
 output/
+.ipynb_checkpoints/
+.DS_Store
