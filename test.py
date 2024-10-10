@@ -79,11 +79,31 @@ def _ssim(img1, img2, window, window_size, channel, size_average=True):
         return ssim_map.mean(1).mean(1).mean(1)
     
 
-def load_scene_data(seq, exp, masking=False, prune=False, seg_as_col=False):
+def load_scene_data(seq, exp, masking=False, masking_method="ste", prune=False, pruning_method="avg", seg_as_col=False):
     params = dict(np.load(f"./output/{exp}/{seq}/params.npz"))
     params = {k: torch.tensor(v).cuda().float() for k, v in params.items()}
     is_fg = params['seg_colors'][:, 0] > 0.5
     scene_data = []
+    indices = None
+    if prune:
+        masks = torch.sigmoid(params["mask"])
+
+
+        if pruning_method == "avg":
+            mean_masks = masks.mean(dim=0)
+            indices = mean_masks < 0.01
+        elif pruning_method == "any":
+            indices = (masks < 0.01).any(dim=0)
+        elif pruning_method == "all":
+            indices = (masks < 0.01).all(dim=0)
+        else:
+            print("Pruning Method Not Implemented")
+            exit(0)
+        
+        params = {k: v[:, ~indices] for k, v in params.items()}
+        is_fg = params['seg_colors'][:, 0] > 0.5
+
+
     for t in range(len(params['means3D'])):
         if not masking:
             rendervar = {
@@ -96,29 +116,24 @@ def load_scene_data(seq, exp, masking=False, prune=False, seg_as_col=False):
             }
             scene_data.append(rendervar)
         else:
+
             mask = torch.sigmoid(params["mask"][t])
             
-            if not prune:
-                rendervar = {
-                    mask = ((mask > 0.01).float() - mask).detach() + mask
-                    'means3D': params['means3D'][t],
-                    'colors_precomp': params['rgb_colors'][t] if not seg_as_col else params['seg_colors'],
-                    'rotations': torch.nn.functional.normalize(params['unnorm_rotations'][t]),
-                    'opacities': torch.sigmoid(params['logit_opacities']) * mask,
-                    'scales': torch.exp(params['log_scales']) * mask,
-                    'means2D': torch.zeros_like(params['means3D'][0], device="cuda")
-                }
-                scene_data.append(rendervar)
+            if masking_method == "ste":
+                mask = ((mask > 0.01).float() - mask).detach() + mask
+            elif masking_method == "sigmoid":
+                pass
             else:
-                print("Pruning Not Implemented")
+                print("Masking Method Not Implemented")
                 exit(0)
+            
     return scene_data, is_fg
 
-def render(w2c, k, timestep_data):
-    with torch.no_grad():
-        cam = setup_camera(w, h, k, w2c, near, far)
-        im, _, depth, = Renderer(raster_settings=cam)(**timestep_data)
-        return im, depth
+# def render(w2c, k, timestep_data):
+#     with torch.no_grad():
+#         cam = setup_camera(w, h, k, w2c, near, far)
+#         im, _, depth, = Renderer(raster_settings=cam)(**timestep_data)
+#         return im, depth
     
 def render(cam, timestep_data):
     with torch.no_grad():
@@ -176,7 +191,8 @@ def test(seq, exp):
             psnrs.append(psnr(im, gt).mean())
             lpipss.append(lpips(im, gt, net_type='vgg'))
 
-    print("  # Gaussians: {}".format(len(scene_data[t]['means3D']))
+    
+    print("  # Gaussians: {}".format(len(scene_data[t]['means3D'])))
     print("  SSIM : {:>12.7f}".format(torch.tensor(ssims).mean(), ".5"))
     print("  PSNR : {:>12.7f}".format(torch.tensor(psnrs).mean(), ".5"))
     print("  LPIPS: {:>12.7f}".format(torch.tensor(lpipss).mean(), ".5"))
@@ -186,6 +202,43 @@ def test(seq, exp):
 
 
 if __name__ == "__main__":
+    print("Testing...")
+    print("Pretrained")
+    exp_name = "pretrained"
+    for sequence in ["basketball", "juggle", "tennis"]:
+        test(sequence, exp_name, masking=False, prune=False)
+
+    print("Trained with Mask Test Without")
     exp_name = "baseline_mask"
     for sequence in ["basketball", "juggle", "tennis"]:
-        test(sequence, exp_name)
+        test(sequence, exp_name, masking=False, prune=False)
+
+    print("Trained with Mask Test With STE")
+    exp_name = "baseline_mask"
+    for sequence in ["basketball", "juggle", "tennis"]:
+        test(sequence, exp_name, masking=True, masking_method="ste", prune=False)
+
+    print("Trained with Mask Test With Sigmoid")
+    exp_name = "baseline_mask"
+    for sequence in ["basketball", "juggle", "tennis"]:
+        test(sequence, exp_name, masking=True, masking_method="sigmoid", prune=False)
+
+    print("Trained with Mask Test without and Pruning with Avg")
+    exp_name = "baseline_mask"
+    for sequence in ["basketball", "juggle", "tennis"]:
+        test(sequence, exp_name, masking=False, prune=True, pruning_method="avg")
+
+    print("Trained with Mask Test without and Pruning with Any")
+    exp_name = "baseline_mask"
+    for sequence in ["basketball", "juggle", "tennis"]:
+        test(sequence, exp_name, masking=False, prune=True, pruning_method="any")
+
+    print("Trained with Mask Test without and Pruning with All")
+    exp_name = "baseline_mask"
+    for sequence in ["basketball", "juggle", "tennis"]:
+        test(sequence, exp_name, masking=False, prune=True, pruning_method="all")
+
+    # exp_name = "baseline_mask"
+    # for sequence in ["basketball", "juggle", "tennis"]:
+    #     test(sequence, exp_name, masking=True, prune=True)
+
