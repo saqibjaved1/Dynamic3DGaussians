@@ -218,9 +218,6 @@ def test(seq, exp, masking=False, masking_method="ste", prune=False, pruning_met
             psnrs.append(psnr(im, gt).mean())
             lpipss.append(lpips(im, gt, net_type='vgg'))
             
-            break
-            
-        break
 
     
     print("  # Gaussians: {}".format(len(scene_data[t]['means3D'])))
@@ -235,9 +232,9 @@ def test(seq, exp, masking=False, masking_method="ste", prune=False, pruning_met
 if __name__ == "__main__":
     print("Testing...")
     # print("Pretrained")
-    # exp_name = "pretrained"
-    # for sequence in ["basketball", "juggle", "tennis"]:
-    #     test(sequence, exp_name, masking=False, prune=False)
+    exp_name = "pretrained"
+    for sequence in ["basketball", "juggle", "tennis"]:
+        test(sequence, exp_name, masking=False, prune=False)
 
     # print("Trained with Mask Test Without")
     # exp_name = "baseline_mask"
@@ -269,7 +266,26 @@ if __name__ == "__main__":
     for sequence in ["basketball", "juggle", "tennis"]:
         test(sequence, exp_name, masking=False, prune=True, pruning_method="all", threshold=0.01, save_prefix="no_mask_prune_all_0.01")
 
-    # exp_name = "baseline_mask"
+    # exp_name = "baseline_mask_0.1"
     # for sequence in ["basketball", "juggle", "tennis"]:
     #     test(sequence, exp_name, masking=True, prune=True)
 
+    print("Trained with Mask Test Without")
+    exp_name = "baseline_mask_0.1"
+    for sequence in ["basketball", "juggle", "tennis"]:
+        test(sequence, exp_name, masking=False, prune=False)
+
+    print("Trained with Mask Test without and Pruning with Avg")
+    exp_name = "baseline_mask_0.1"
+    for sequence in ["basketball", "juggle", "tennis"]:
+        test(sequence, exp_name, masking=False, prune=True, pruning_method="avg", threshold=0.1, save_prefix="no_mask_prune_avg_0.1")
+
+    print("Trained with Mask Test without and Pruning with Any")
+    exp_name = "baseline_mask_0.1"
+    for sequence in ["basketball", "juggle", "tennis"]:
+        test(sequence, exp_name, masking=False, prune=True, pruning_method="any", threshold=0.1, save_prefix="no_mask_prune_any_0.1")
+
+    print("Trained with Mask Test without and Pruning with All")
+    exp_name = "baseline_mask_0.1"
+    for sequence in ["basketball", "juggle", "tennis"]:
+        test(sequence, exp_name, masking=False, prune=True, pruning_method="all", threshold=0.1, save_prefix="no_mask_prune_all_0.1")
