@@ -126,6 +126,16 @@ def load_scene_data(seq, exp, masking=False, masking_method="ste", prune=False, 
             else:
                 print("Masking Method Not Implemented")
                 exit(0)
+                
+            rendervar = {
+                'means3D': params['means3D'][t],
+                'colors_precomp': params['rgb_colors'][t] if not seg_as_col else params['seg_colors'],
+                'rotations': torch.nn.functional.normalize(params['unnorm_rotations'][t]),
+                'opacities': torch.sigmoid(params['logit_opacities']) * mask,
+                'scales': torch.exp(params['log_scales']) * mask,
+                'means2D': torch.zeros_like(params['means3D'][0], device="cuda")
+            }
+            scene_data.append(rendervar)
             
     return scene_data, is_fg
 
@@ -155,7 +165,7 @@ def get_dataset(t, md, seq):
         dataset.append({'cam': cam, 'im': im, 'id': c})
     return dataset
 
-def test(seq, exp):
+def test(seq, exp, masking=False, masking_method="ste", prune=False, pruning_method="avg"):
     print(f"Testing Experiment: {exp}, {seq}")
     
     print("Loading Metadata")
@@ -163,7 +173,7 @@ def test(seq, exp):
     num_timesteps = len(md['fn'])
 
     print("Loading Gaussian Model")
-    scene_data, is_fg = load_scene_data(seq, exp)
+    scene_data, is_fg = load_scene_data(seq, exp, masking=masking, masking_method=masking_method, prune=prune, pruning_method=pruning_method)
 
     render_path = f"./output/{exp}/{seq}/renders"
     gts_path = f"./output/{exp}/{seq}/gt"
@@ -190,6 +200,10 @@ def test(seq, exp):
             ssims.append(ssim(im, gt))
             psnrs.append(psnr(im, gt).mean())
             lpipss.append(lpips(im, gt, net_type='vgg'))
+            
+            break
+            
+        break
 
     
     print("  # Gaussians: {}".format(len(scene_data[t]['means3D'])))
