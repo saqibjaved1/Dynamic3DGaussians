@@ -32,7 +32,7 @@ def setup_camera(w, h, k, w2c, near=0.01, far=100):
 
 
 def params2rendervar(params):
-    mask = ((torch.sigmoid(params["mask"]) > 0.01).float()- torch.sigmoid(params["mask"])).detach() + torch.sigmoid(params["mask"])
+    mask = ((torch.sigmoid(params["mask"]) > 0.1).float()- torch.sigmoid(params["mask"])).detach() + torch.sigmoid(params["mask"])
     rendervar = {
         'means3D': params['means3D'],
         'colors_precomp': params['rgb_colors'],

@@ -225,7 +225,7 @@ def train(seq, exp):
 
 
 if __name__ == "__main__":
-    exp_name = "baseline_mask"
+    exp_name = "baseline_mask_0.1"
     # for sequence in ["basketball", "boxes", "football", "juggle", "softball", "tennis"]:
     #     train(sequence, exp_name)
     #     torch.cuda.empty_cache()

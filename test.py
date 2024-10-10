@@ -100,6 +100,9 @@ def load_scene_data(seq, exp, masking=False, masking_method="ste", prune=False, 
             print("Pruning Method Not Implemented")
             exit(0)
         
+        # Indices have size [N, 1]
+        indices = indices.squeeze(1)
+        # Params have size [T, N, D]
         params = {k: v[:, ~indices] for k, v in params.items()}
         is_fg = params['seg_colors'][:, 0] > 0.5
 
@@ -217,25 +220,25 @@ def test(seq, exp, masking=False, masking_method="ste", prune=False, pruning_met
 
 if __name__ == "__main__":
     print("Testing...")
-    print("Pretrained")
-    exp_name = "pretrained"
-    for sequence in ["basketball", "juggle", "tennis"]:
-        test(sequence, exp_name, masking=False, prune=False)
+    # print("Pretrained")
+    # exp_name = "pretrained"
+    # for sequence in ["basketball", "juggle", "tennis"]:
+    #     test(sequence, exp_name, masking=False, prune=False)
 
-    print("Trained with Mask Test Without")
-    exp_name = "baseline_mask"
-    for sequence in ["basketball", "juggle", "tennis"]:
-        test(sequence, exp_name, masking=False, prune=False)
+    # print("Trained with Mask Test Without")
+    # exp_name = "baseline_mask"
+    # for sequence in ["basketball", "juggle", "tennis"]:
+    #     test(sequence, exp_name, masking=False, prune=False)
 
-    print("Trained with Mask Test With STE")
-    exp_name = "baseline_mask"
-    for sequence in ["basketball", "juggle", "tennis"]:
-        test(sequence, exp_name, masking=True, masking_method="ste", prune=False)
+    # print("Trained with Mask Test With STE")
+    # exp_name = "baseline_mask"
+    # for sequence in ["basketball", "juggle", "tennis"]:
+    #     test(sequence, exp_name, masking=True, masking_method="ste", prune=False)
 
-    print("Trained with Mask Test With Sigmoid")
-    exp_name = "baseline_mask"
-    for sequence in ["basketball", "juggle", "tennis"]:
-        test(sequence, exp_name, masking=True, masking_method="sigmoid", prune=False)
+    # print("Trained with Mask Test With Sigmoid")
+    # exp_name = "baseline_mask"
+    # for sequence in ["basketball", "juggle", "tennis"]:
+    #     test(sequence, exp_name, masking=True, masking_method="sigmoid", prune=False)
 
     print("Trained with Mask Test without and Pruning with Avg")
     exp_name = "baseline_mask"
