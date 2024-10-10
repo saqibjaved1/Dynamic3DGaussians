@@ -88,7 +88,7 @@ def load_scene_data(seq, exp, masking=False, masking_method="ste", prune=False, 
     if prune:
         masks = torch.sigmoid(params["mask"])
 
-
+        print(f"Initial Gaussians: {len(masks[0])}")
         if pruning_method == "avg":
             mean_masks = masks.mean(dim=0)
             indices = mean_masks < 0.01
@@ -102,9 +102,20 @@ def load_scene_data(seq, exp, masking=False, masking_method="ste", prune=False, 
         
         # Indices have size [N, 1]
         indices = indices.squeeze(1)
+        
+        print(f"Pruning Gaussians: {indices.sum().item()}")
         # Params have size [T, N, D]
-        params = {k: v[:, ~indices] for k, v in params.items()}
+        params_pruned = {}
+        for k, v in params.items():
+            if len(v.shape) == 3:
+                params_pruned[k] = v[:, ~indices, :]
+            else:
+                params_pruned[k] = v
+                
+        params = params_pruned
         is_fg = params['seg_colors'][:, 0] > 0.5
+        
+        print(f"Remaining Gaussians: {len(params['means3D'][0])}")
 
 
     for t in range(len(params['means3D'])):
@@ -230,30 +241,30 @@ if __name__ == "__main__":
     # for sequence in ["basketball", "juggle", "tennis"]:
     #     test(sequence, exp_name, masking=False, prune=False)
 
-    # print("Trained with Mask Test With STE")
-    # exp_name = "baseline_mask"
-    # for sequence in ["basketball", "juggle", "tennis"]:
-    #     test(sequence, exp_name, masking=True, masking_method="ste", prune=False)
+#     print("Trained with Mask Test With STE")
+#     exp_name = "baseline_mask"
+#     for sequence in ["basketball", "juggle", "tennis"]:
+#         test(sequence, exp_name, masking=True, masking_method="ste", prune=False)
 
-    # print("Trained with Mask Test With Sigmoid")
-    # exp_name = "baseline_mask"
-    # for sequence in ["basketball", "juggle", "tennis"]:
-    #     test(sequence, exp_name, masking=True, masking_method="sigmoid", prune=False)
+#     print("Trained with Mask Test With Sigmoid")
+#     exp_name = "baseline_mask"
+#     for sequence in ["basketball", "juggle", "tennis"]:
+#         test(sequence, exp_name, masking=True, masking_method="sigmoid", prune=False)
 
     print("Trained with Mask Test without and Pruning with Avg")
     exp_name = "baseline_mask"
     for sequence in ["basketball", "juggle", "tennis"]:
         test(sequence, exp_name, masking=False, prune=True, pruning_method="avg")
 
-    print("Trained with Mask Test without and Pruning with Any")
-    exp_name = "baseline_mask"
-    for sequence in ["basketball", "juggle", "tennis"]:
-        test(sequence, exp_name, masking=False, prune=True, pruning_method="any")
+    # print("Trained with Mask Test without and Pruning with Any")
+    # exp_name = "baseline_mask"
+    # for sequence in ["basketball", "juggle", "tennis"]:
+    #     test(sequence, exp_name, masking=False, prune=True, pruning_method="any")
 
-    print("Trained with Mask Test without and Pruning with All")
-    exp_name = "baseline_mask"
-    for sequence in ["basketball", "juggle", "tennis"]:
-        test(sequence, exp_name, masking=False, prune=True, pruning_method="all")
+    # print("Trained with Mask Test without and Pruning with All")
+    # exp_name = "baseline_mask"
+    # for sequence in ["basketball", "juggle", "tennis"]:
+    #     test(sequence, exp_name, masking=False, prune=True, pruning_method="all")
 
     # exp_name = "baseline_mask"
     # for sequence in ["basketball", "juggle", "tennis"]:
