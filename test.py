@@ -107,10 +107,13 @@ def load_scene_data(seq, exp, masking=False, masking_method="ste", prune=False, 
         # Params have size [T, N, D]
         params_pruned = {}
         for k, v in params.items():
+            if k in ["cam_m", "cam_c"]:
+                continue
+            
             if len(v.shape) == 3:
                 params_pruned[k] = v[:, ~indices, :]
             else:
-                params_pruned[k] = v
+                params_pruned[k] = v[~indices, :]
                 
         params = params_pruned
         is_fg = params['seg_colors'][:, 0] > 0.5
@@ -209,8 +212,8 @@ def test(seq, exp, masking=False, masking_method="ste", prune=False, pruning_met
             im, depth = render(camera["cam"], scene_data[t])
             gt = camera['im']
             
-            torchvision.utils.save_image(im, os.path.join(render_path, 'exp_{save_prefix}_t_{0:05d}_{0:05d}'.format(t, idx) + ".png"))
-            torchvision.utils.save_image(gt, os.path.join(gts_path, 'exp_{save_prefix}_t_{0:05d}_{0:05d}'.format(t, idx) + ".png"))
+            torchvision.utils.save_image(im, os.path.join(render_path, 'exp_{}_t_{:05d}_{:05d}'.format(save_prefix, t, idx) + ".png"))
+            torchvision.utils.save_image(gt, os.path.join(gts_path, 'exp_{}_t_{:05d}_{:05d}'.format(save_prefix, t, idx) + ".png"))
             ssims.append(ssim(im, gt))
             psnrs.append(psnr(im, gt).mean())
             lpipss.append(lpips(im, gt, net_type='vgg'))
