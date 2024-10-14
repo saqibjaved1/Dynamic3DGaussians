@@ -125,7 +125,7 @@ def get_loss(params, curr_data, variables, is_initial_timestep):
         losses['soft_col_cons'] = l1_loss_v2(params['rgb_colors'], variables["prev_col"])
 
     loss_weights = {'im': 1.0, 'seg': 3.0, 'rigid': 4.0, 'rot': 4.0, 'iso': 2.0, 'floor': 2.0, 'bg': 20.0,
-                    'soft_col_cons': 0.01, 'mask': 0.0005}
+                    'soft_col_cons': 0.01, 'mask': 0.005}
     loss = sum([loss_weights[k] * v for k, v in losses.items()])
     seen = radius > 0
     variables['max_2D_radius'][seen] = torch.max(radius[seen], variables['max_2D_radius'][seen])
@@ -225,7 +225,7 @@ def train(seq, exp):
 
 
 if __name__ == "__main__":
-    exp_name = "baseline_mask_0.1"
+    exp_name = "increased_weight_0.005"
     # for sequence in ["basketball", "boxes", "football", "juggle", "softball", "tennis"]:
     #     train(sequence, exp_name)
     #     torch.cuda.empty_cache()
