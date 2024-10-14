@@ -120,12 +120,16 @@ def get_loss(params, curr_data, variables, is_initial_timestep):
 
         bg_pts = rendervar['means3D'][~is_fg]
         bg_rot = rendervar['rotations'][~is_fg]
+
         losses['bg'] = l1_loss_v2(bg_pts, variables["init_bg_pts"]) + l1_loss_v2(bg_rot, variables["init_bg_rot"])
 
         losses['soft_col_cons'] = l1_loss_v2(params['rgb_colors'], variables["prev_col"])
 
+        losses['mask_cons'] = l1_loss_v2(params['mask'], variables["prev_mask"])
+
     loss_weights = {'im': 1.0, 'seg': 3.0, 'rigid': 4.0, 'rot': 4.0, 'iso': 2.0, 'floor': 2.0, 'bg': 20.0,
-                    'soft_col_cons': 0.01, 'mask': 0.005}
+                    'soft_col_cons': 0.01, 'mask': 0.05, 'mask_cons': 0.01}
+    
     loss = sum([loss_weights[k] * v for k, v in losses.items()])
     seen = radius > 0
     variables['max_2D_radius'][seen] = torch.max(radius[seen], variables['max_2D_radius'][seen])
@@ -148,6 +152,7 @@ def initialize_per_timestep(params, variables, optimizer):
     variables['prev_inv_rot_fg'] = prev_inv_rot_fg.detach()
     variables['prev_offset'] = prev_offset.detach()
     variables["prev_col"] = params['rgb_colors'].detach()
+    variables["prev_mask"] = params['mask'].detach()
     variables["prev_pts"] = pts.detach()
     variables["prev_rot"] = rot.detach()
 
@@ -225,7 +230,7 @@ def train(seq, exp):
 
 
 if __name__ == "__main__":
-    exp_name = "increased_weight_0.005"
+    exp_name = "consistent_mask_0.05_0.01"
     # for sequence in ["basketball", "boxes", "football", "juggle", "softball", "tennis"]:
     #     train(sequence, exp_name)
     #     torch.cuda.empty_cache()
