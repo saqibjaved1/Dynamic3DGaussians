@@ -128,7 +128,7 @@ def get_loss(params, curr_data, variables, is_initial_timestep):
         losses['mask_cons'] = l1_loss_v2(params['mask'], variables["prev_mask"])
 
     loss_weights = {'im': 1.0, 'seg': 3.0, 'rigid': 4.0, 'rot': 4.0, 'iso': 2.0, 'floor': 2.0, 'bg': 20.0,
-                    'soft_col_cons': 0.01, 'mask': 0.05, 'mask_cons': 0.01}
+                    'soft_col_cons': 0.01, 'mask': 0.01, 'mask_cons': 0.005}
     
     loss = sum([loss_weights[k] * v for k, v in losses.items()])
     seen = radius > 0
@@ -230,7 +230,7 @@ def train(seq, exp):
 
 
 if __name__ == "__main__":
-    exp_name = "consistent_mask_0.05_0.01"
+    exp_name = "consistent_mask_0.01_0.005"
     # for sequence in ["basketball", "boxes", "football", "juggle", "softball", "tennis"]:
     #     train(sequence, exp_name)
     #     torch.cuda.empty_cache()
