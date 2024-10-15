@@ -302,15 +302,15 @@ if __name__ == "__main__":
     # for sequence in ["basketball", "juggle", "tennis"]:
     #     test(sequence, exp_name, masking=False, prune=True, pruning_method="avg", threshold=0.1, save_prefix="no_mask_prune_avg_0.1")
 
-    print("Trained with Mask Test without and Pruning with Any")
-    exp_name = "increased_weight_0.005"
-    for sequence in ["basketball", "juggle", "tennis"]:
-        test(sequence, exp_name, masking=False, prune=True, pruning_method="any", threshold=0.1, save_prefix="no_mask_prune_any_0.1")
+    # print("Trained with Mask Test without and Pruning with Any")
+    # exp_name = "increased_weight_0.005"
+    # for sequence in ["basketball", "juggle", "tennis"]:
+    #     test(sequence, exp_name, masking=False, prune=True, pruning_method="any", threshold=0.1, save_prefix="no_mask_prune_any_0.1")
 
-    print("Trained with Mask Test without and Pruning with All")
-    exp_name = "increased_weight_0.005"
-    for sequence in ["basketball", "juggle", "tennis"]:
-        test(sequence, exp_name, masking=False, prune=True, pruning_method="all", threshold=0.1, save_prefix="no_mask_prune_all_0.1")
+    # print("Trained with Mask Test without and Pruning with All")
+    # exp_name = "increased_weight_0.005"
+    # for sequence in ["basketball", "juggle", "tennis"]:
+    #     test(sequence, exp_name, masking=False, prune=True, pruning_method="all", threshold=0.1, save_prefix="no_mask_prune_all_0.1")
 
     # -------------------------
 
