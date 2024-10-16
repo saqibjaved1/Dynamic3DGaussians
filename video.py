@@ -30,23 +30,21 @@ def create_video_from_folder(folder_path, output_path, save_prefix="", camera_id
 
 
 
-exp = "exp"
-seq = "basketball"
+
+seq = "tennis"
 camera_ids = [0, 1, 2, 3]
 
 for camera_id in camera_ids:
-    create_video_from_folder(f"./output/{exp}/{seq}/gt", f"./output/{exp}/{seq}/gt_video_{camera_id}.mp4", "", camera_id)
-
-save_prefixes = ["", "no_mask_prune_avg_0.1", "no_mask_prune_any_0.1", "no_mask_prune_all_0.1"]
-
-# for camera_id in camera_ids:
-    # create_video_from_folder(f"./output/{exp}/{seq}/renders", f"./output/{exp}/{seq}/render_video_{save_prefix}_{camera_id}.mp4", save_prefix, camera_id)
+    create_video_from_folder(f"output/pretrained/{seq}/gt", f"output/pretrained/{seq}/gt_video_{camera_id}.mp4", "", camera_id)
 
 # Pretrained model
 for camera_id in camera_ids:
-    create_video_from_folder(f"./output/{exp}/{seq}/renders", f"./output/{exp}/{seq}/render_video_{camera_id}.mp4", "", camera_id)
+    create_video_from_folder(f"output/pretrained/{seq}/renders", f"output/pretrained/{seq}/render_video_{camera_id}.mp4", "", camera_id)
+    
+save_prefixes = ["", "no_mask_prune_avg_0.1", "no_mask_prune_any_0.1", "no_mask_prune_all_0.1"]
 
+exp = "consistent_mask_0.05_0.01"
 # Own models
 for camera_id in camera_ids:
     for save_prefix in save_prefixes:
-        create_video_from_folder(f"./output/{exp}/{seq}/renders", f"./output/{exp}/{seq}/render_video_{save_prefix}_{camera_id}.mp4", save_prefix, camera_id)
+        create_video_from_folder(f"output/{exp}/{seq}/renders", f"output/{exp}/{seq}/render_video_{save_prefix}_{camera_id}.mp4", save_prefix, camera_id)
