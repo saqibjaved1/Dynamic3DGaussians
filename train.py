@@ -9,8 +9,20 @@ from tqdm import tqdm
 from diff_gaussian_rasterization import GaussianRasterizer as Renderer
 from helpers import setup_camera, l1_loss_v1, l1_loss_v2, weighted_l2_loss_v1, weighted_l2_loss_v2, quat_mult, \
     o3d_knn, params2rendervar, params2cpu, save_params
-from external import calc_ssim, calc_psnr, build_rotation, densify, update_params_and_optimizer
+from external import calc_ssim, calc_psnr, build_rotation, densify, update_params_and_optimizer, QuanGaussianParam
 
+
+
+
+
+def apply_quantization(params):
+    # Apply quantization (LSQ) to the Gaussian parameters
+    params['logit_opacities'] = QuanGaussianParam(params['logit_opacities'], bit_width=2)
+    params['rgb_colors'] = QuanGaussianParam(params['rgb_colors'], bit_width=2)
+    # params['log_scales'] = QuanGaussianParam(params['log_scales'], bit_width=6).param
+
+    # Return the updated parameters with quantization
+    return params
 
 def get_dataset(t, md, seq):
     dataset = []
@@ -74,13 +86,25 @@ def initialize_optimizer(params, variables):
         'cam_m': 1e-4,
         'cam_c': 1e-4,
     }
-    param_groups = [{'params': [v], 'name': k, 'lr': lrs[k]} for k, v in params.items()]
+
+
+
+    # Extract underlying params for optimizer
+    param_groups = []
+    for k, v in params.items():
+        if isinstance(v, QuanGaussianParam):
+            param_groups.append({'params': [v.param], 'name': k, 'lr': lrs[k]})  # Use v.param
+            param_groups.append({'params': [v.quan_fn.s],'name': k+'scale',  'lr': 0.025})
+        else:
+            param_groups.append({'params': [v], 'name': k, 'lr': lrs[k]})
+
+
     return torch.optim.Adam(param_groups, lr=0.0, eps=1e-15)
 
 
 def get_loss(params, curr_data, variables, is_initial_timestep):
     losses = {}
-
+    # print(params[])
     rendervar = params2rendervar(params)
     rendervar['means2D'].retain_grad()
     im, radius, _, = Renderer(raster_settings=curr_data['cam'])(**rendervar)
@@ -123,7 +147,7 @@ def get_loss(params, curr_data, variables, is_initial_timestep):
 
         losses['bg'] = l1_loss_v2(bg_pts, variables["init_bg_pts"]) + l1_loss_v2(bg_rot, variables["init_bg_rot"])
 
-        losses['soft_col_cons'] = l1_loss_v2(params['rgb_colors'], variables["prev_col"])
+        losses['soft_col_cons'] = l1_loss_v2(params['rgb_colors']() if isinstance(params['rgb_colors'], QuanGaussianParam) else params['rgb_colors'], variables["prev_col"])
 
         losses['mask_cons'] = l1_loss_v2(params['mask'], variables["prev_mask"])
 
@@ -151,7 +175,7 @@ def initialize_per_timestep(params, variables, optimizer):
     prev_offset = fg_pts[variables["neighbor_indices"]] - fg_pts[:, None]
     variables['prev_inv_rot_fg'] = prev_inv_rot_fg.detach()
     variables['prev_offset'] = prev_offset.detach()
-    variables["prev_col"] = params['rgb_colors'].detach()
+    variables["prev_col"] = params['rgb_colors']().detach()
     variables["prev_mask"] = params['mask'].detach()
     variables["prev_pts"] = pts.detach()
     variables["prev_rot"] = rot.detach()
@@ -194,6 +218,37 @@ def report_progress(params, data, i, progress_bar, every_i=100):
         progress_bar.set_postfix({"train img 0 PSNR": f"{psnr:.{7}f}"})
         progress_bar.update(every_i)
 
+# def quantize_params(params):
+#     # Define a mapping of parameters to their respective quantizers
+#
+#     position_quantizer = LsqQuan(bit=8)  # Example: 8-bit quantization
+#     size_quantizer = LsqQuan(bit=6)  # Example: 6-bit quantization
+#     color_quantizer = LsqQuan(bit=4)
+#     rotation_quantizer = LsqQuan(bit=4)
+#     opacity_quantizer = LsqQuan(bit=4)
+#     scale_quantizer = LsqQuan(bit=4)
+#
+#     quantizer_mapping = {
+#         'means3D': position_quantizer,
+#         'sizes': size_quantizer,
+#         'rgb_colors': color_quantizer,
+#         'unnorm_rotations': rotation_quantizer,
+#         'logit_opacities': opacity_quantizer,
+#         'log_scales': scale_quantizer
+#         # Add more as needed
+#     }
+#
+#     # Apply LSQ quantization to each parameter in the dictionary
+#     quantized_params = {}
+#     for k, param in params.items():
+#         if k in quantizer_mapping:
+#             quantizer = quantizer_mapping[k]
+#             quantized_params[k] = quantizer(param)
+#         else:
+#             # If no specific quantizer is defined, you can skip quantization or apply a default quantizer
+#             quantized_params[k] = param
+#     return quantized_params
+
 
 def train(seq, exp):
     if os.path.exists(f"./output/{exp}/{seq}"):
@@ -202,7 +257,14 @@ def train(seq, exp):
     md = json.load(open(f"/scratch/cvlab/datasets/datasets_ahmad/panoptic/{seq}/train_meta.json", 'r'))  # metadata
     num_timesteps = len(md['fn'])
     params, variables = initialize_params(seq, md)
+    # print(params[1])
+    # script_dir = Path.cwd()
+    # args = util.get_config(default_file=script_dir / 'config.yaml')
+    # quantized_params = quantize_params(params)
+    # print(quantize_params[1])
     optimizer = initialize_optimizer(params, variables)
+    # Store if quantization has been applied yet
+    quantization_applied = False
     output_params = []
     for t in range(num_timesteps):
         dataset = get_dataset(t, md, seq)
@@ -214,6 +276,22 @@ def train(seq, exp):
         progress_bar = tqdm(range(num_iter_per_timestep), desc=f"timestep {t}")
         for i in range(num_iter_per_timestep):
             curr_data = get_batch(todo_dataset, dataset)
+
+            # Apply quantization after the first 1000 iterations
+            if i > 5000 and not quantization_applied:
+                print(params["rgb_colors"])
+                params = apply_quantization(params)
+                optimizer = initialize_optimizer(params, variables)  # Reinitialize optimizer after quantization
+                quantization_applied = True  # Mark that quantization has been applied
+                print(params["rgb_colors"]())
+                print(params["logit_opacities"]())
+                print(params["logit_opacities"].quan_fn.s)
+
+            # print(params["logit_opacities"].shape)
+
+            # if i>5000:
+                # print(params["rgb_colors"].quan_fn.s)
+                # print(params["rgb_colors"]())
             loss, variables = get_loss(params, curr_data, variables, is_initial_timestep)
             loss.backward()
             with torch.no_grad():
@@ -230,7 +308,7 @@ def train(seq, exp):
 
 
 if __name__ == "__main__":
-    exp_name = "consistent_mask_0.01_0.005"
+    exp_name = "consistent_mask_0.01_0.005_2_bit_color_opacity_lr0.025"
     # for sequence in ["basketball", "boxes", "football", "juggle", "softball", "tennis"]:
     #     train(sequence, exp_name)
     #     torch.cuda.empty_cache()

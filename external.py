@@ -20,7 +20,22 @@ import torch
 import torch.nn.functional as func
 from torch.autograd import Variable
 from math import exp
+from quan.quantizer import LsqQuan  # Import LSQ quantizer from your existing quantizer module
 
+
+
+# Wrapper for LSQ quantization on individual parameters
+class QuanGaussianParam(torch.nn.Module):
+    def __init__(self, param: torch.nn.Parameter, quan_fn=None, bit_width=8):
+        super().__init__()
+        self.param = torch.nn.Parameter(param.detach())
+        self.quan_fn = quan_fn if quan_fn is not None else LsqQuan(bit=bit_width)
+        self.quan_fn.init_from(self.param)
+
+    def forward(self):
+        # Apply LSQ quantization to the parameter
+        quantized_param = self.quan_fn(self.param)
+        return quantized_param
 
 def build_rotation(q):
     norm = torch.sqrt(q[:, 0] * q[:, 0] + q[:, 1] * q[:, 1] + q[:, 2] * q[:, 2] + q[:, 3] * q[:, 3])

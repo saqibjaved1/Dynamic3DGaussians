@@ -338,21 +338,22 @@ if __name__ == "__main__":
     # -------------------------
 
     print("Trained with Mask Test Without")
-    exp_name = "consistent_mask_0.01_0.005"
-    for sequence in ["basketball", "juggle", "tennis"]:
+    exp_name = "consistent_mask_0.01_0.005_4_bit_lr"
+    # for sequence in ["basketball", "juggle", "tennis"]:
+    for sequence in ["basketball"]:
         test(sequence, exp_name, masking=False, prune=False)
 
     print("Trained with Mask Test without and Pruning with Avg")
-    exp_name = "consistent_mask_0.01_0.005"
-    for sequence in ["basketball", "juggle", "tennis"]:
+    exp_name = "consistent_mask_0.01_0.005_4_bit_lr"
+    for sequence in ["basketball"]:
         test(sequence, exp_name, masking=False, prune=True, pruning_method="avg", threshold=0.1, save_prefix="no_mask_prune_avg_0.1")
 
     print("Trained with Mask Test without and Pruning with Any")
-    exp_name = "consistent_mask_0.01_0.005"
-    for sequence in ["basketball", "juggle", "tennis"]:
+    exp_name = "consistent_mask_0.01_0.005_4_bit_lr"
+    for sequence in ["basketball"]:
         test(sequence, exp_name, masking=False, prune=True, pruning_method="any", threshold=0.1, save_prefix="no_mask_prune_any_0.1")
 
     print("Trained with Mask Test without and Pruning with All")
-    exp_name = "consistent_mask_0.01_0.005"
-    for sequence in ["basketball", "juggle", "tennis"]:
+    exp_name = "consistent_mask_0.01_0.005_4_bit_lr"
+    for sequence in ["basketball"]:
         test(sequence, exp_name, masking=False, prune=True, pruning_method="all", threshold=0.1, save_prefix="no_mask_prune_all_0.1")

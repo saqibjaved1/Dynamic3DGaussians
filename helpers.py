@@ -3,7 +3,7 @@ import os
 import open3d as o3d
 import numpy as np
 from diff_gaussian_rasterization import GaussianRasterizationSettings as Camera
-
+from external import QuanGaussianParam
 
 def setup_camera(w, h, k, w2c, near=0.01, far=100):
     fx, fy, cx, cy = k[0][0], k[1][1], k[0][2], k[1][2]
@@ -33,11 +33,14 @@ def setup_camera(w, h, k, w2c, near=0.01, far=100):
 
 def params2rendervar(params):
     mask = ((torch.sigmoid(params["mask"]) > 0.1).float()- torch.sigmoid(params["mask"])).detach() + torch.sigmoid(params["mask"])
+    logit_opacities = params['logit_opacities']() if isinstance(params['logit_opacities'], QuanGaussianParam) else \
+    params['logit_opacities']
+
     rendervar = {
         'means3D': params['means3D'],
-        'colors_precomp': params['rgb_colors'],
+        'colors_precomp': params['rgb_colors'] if not isinstance(params['rgb_colors'], QuanGaussianParam) else params['rgb_colors']() ,
         'rotations': torch.nn.functional.normalize(params['unnorm_rotations']),
-        'opacities': torch.sigmoid(params['logit_opacities']) * mask,
+        'opacities': torch.sigmoid(logit_opacities) * mask,
         'scales': torch.exp(params['log_scales']) * mask,
         'means2D': torch.zeros_like(params['means3D'], requires_grad=True, device="cuda") + 0
     }
@@ -82,14 +85,29 @@ def o3d_knn(pts, num_knn):
         sq_dists.append(d[1:])
     return np.array(sq_dists), np.array(indices)
 
-
 def params2cpu(params, is_initial_timestep):
-    if is_initial_timestep:
-        res = {k: v.detach().cpu().contiguous().numpy() for k, v in params.items()}
-    else:
-        res = {k: v.detach().cpu().contiguous().numpy() for k, v in params.items() if
-               k in ['means3D', 'rgb_colors', 'unnorm_rotations', "mask"]}
+    # Define the keys to retain if not the initial timestep
+    keys_to_retain = ['means3D', 'rgb_colors', 'unnorm_rotations', "mask"]
+
+    res = {}
+    for k, v in params.items():
+        # Check if we are at the initial timestep or if the key should be retained
+        if is_initial_timestep or k in keys_to_retain:
+            # If it's an instance of QuanGaussianParam, access the underlying tensor
+            tensor = v() if isinstance(v, QuanGaussianParam) else v
+            res[k] = tensor.detach().cpu().contiguous().numpy()
     return res
+
+
+
+
+# def params2cpu(params, is_initial_timestep):
+#     if is_initial_timestep:
+#         res = {k: v.detach().cpu().contiguous().numpy() for k, v in params.items()}
+#     else:
+#         res = {k: v.detach().cpu().contiguous().numpy() for k, v in params.items() if
+#                k in ['means3D', 'rgb_colors', 'unnorm_rotations', "mask"]}
+#     return res
 
 
 def save_params(output_params, seq, exp):
